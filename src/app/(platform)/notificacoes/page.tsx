@@ -51,7 +51,8 @@ export default async function NotificacoesPage() {
   });
 
   // Serialise Dates to ISO strings for client-side consumption
-  const notifications: NotificationItem[] = rows.map((n) => ({
+ const notifications: NotificationItem[] = rows.map((n: any) => ({
+
     id:           n.id,
     type:         n.type,
     title:        n.title,
