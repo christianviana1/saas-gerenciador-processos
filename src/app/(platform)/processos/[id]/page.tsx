@@ -307,7 +307,7 @@ export default async function ProcessoDetailPage({
             </div>
           ) : (
             <ol className="divide-y divide-gray-100" aria-label="Histórico de tribunais">
-              {courtHistory.map((entry, idx) => (
+              {courtHistory.map((entry: any, idx: number) => (
                 <li key={entry.id} className="px-6 py-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
