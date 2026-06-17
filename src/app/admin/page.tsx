@@ -107,7 +107,7 @@ export default async function AdminPage({
                 </td>
               </tr>
             ) : (
-              tenants.map((tenant) => (
+              tenants.map((tenant: any) => (
                 <tr key={tenant.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="text-sm font-medium text-gray-900">{tenant.name}</div>
