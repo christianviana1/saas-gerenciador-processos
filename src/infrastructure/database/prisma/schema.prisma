@@ -1,0 +1,383 @@
+// src/infrastructure/database/prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────
+
+enum TenantPlan {
+  BASIC
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum TenantStatus {
+  ACTIVE
+  BLOCKED
+  SUSPENDED
+  TERMINATED
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  OFFICE_ADMIN
+  LAWYER
+  LEGAL_ASSISTANT
+  INTERN
+  READ_ONLY_USER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+enum ProcessStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+}
+
+enum NotificationType {
+  PROCESS_UPDATED
+  COURT_CHANGED
+  TASK_ASSIGNED
+  TASK_COMPLETED
+  INVITATION_SENT
+  INVITATION_ACCEPTED
+  ACCOUNT_BLOCKED
+  DATAJUD_UNAVAILABLE
+  SYSTEM_ALERT
+}
+
+enum DataJudSyncStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  RETRYING
+}
+
+// ─────────────────────────────────────────────────────────────────
+// TENANT
+// ─────────────────────────────────────────────────────────────────
+model Tenant {
+  id        String       @id @default(cuid())
+  name      String       @db.VarChar(255)
+  slug      String       @unique @db.VarChar(100)
+  plan      TenantPlan   @default(BASIC)
+  status    TenantStatus @default(ACTIVE)
+  settings  Json?
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  users         User[]
+  processes     Process[]
+  tasks         Task[]
+  auditLogs     AuditLog[]
+  invitations   InvitationToken[]
+  consents      ConsentRecord[]
+  notifications Notification[]
+
+  @@map("tenants")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────────────────────────────
+model User {
+  id           String     @id @default(cuid())
+  tenantId     String     @map("tenant_id")
+  email        String     @db.VarChar(255)
+  name         String     @db.VarChar(255)
+  passwordHash String     @map("password_hash") @db.VarChar(255)
+  role         UserRole   @default(READ_ONLY_USER)
+  status       UserStatus @default(ACTIVE)
+  mfaEnabled   Boolean    @default(false) @map("mfa_enabled")
+  mfaSecret    String?    @map("mfa_secret") @db.VarChar(500) // AES-256 encrypted
+  lastLoginAt  DateTime?  @map("last_login_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  deletedAt    DateTime?  @map("deleted_at")
+
+  tenant                    Tenant                       @relation(fields: [tenantId], references: [id])
+  auditLogs                 AuditLog[]
+  tasks                     Task[]                       @relation("TaskAssignee")
+  createdTasks              Task[]                       @relation("TaskCreator")
+  taskHistory               TaskHistory[]
+  invitedBy                 InvitationToken[]            @relation("InvitedBy")
+  notificationPreferences   UserNotificationPreference[]
+  consents                  ConsentRecord[]
+  courtChanges              CourtHistory[]
+
+  @@unique([email, tenantId])
+  @@index([tenantId])
+  @@index([email])
+  @@index([tenantId, status])
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// PROCESS
+// ─────────────────────────────────────────────────────────────────
+model Process {
+  id                 String        @id @default(cuid())
+  tenantId           String        @map("tenant_id")
+  cnjNumber          String        @map("cnj_number") @db.VarChar(25)
+  clientName         String        @map("client_name") @db.VarChar(255)
+  currentCourt       String?       @map("current_court") @db.VarChar(500)
+  status             ProcessStatus @default(ACTIVE)
+  processClass       String        @map("process_class") @db.VarChar(255)
+  subject            String        @db.VarChar(500)
+  description        String?       @db.Text
+  tags               Json? // string[]
+  responsibleUserIds Json          @map("responsible_user_ids") // string[]
+  lastDatajudSyncAt  DateTime?     @map("last_datajud_sync_at")
+  datajudHash        String?       @map("datajud_hash") @db.VarChar(64)
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+  deletedAt          DateTime?     @map("deleted_at")
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  tasks         Task[]
+  courtHistory  CourtHistory[]
+  datajudSyncs  DataJudSync[]
+
+  @@unique([cnjNumber, tenantId])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, cnjNumber])
+  @@map("processes")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// COURT HISTORY — IMUTÁVEL (append-only)
+// ─────────────────────────────────────────────────────────────────
+model CourtHistory {
+  id              String   @id @default(cuid())
+  processId       String   @map("process_id")
+  tenantId        String   @map("tenant_id")
+  previousCourt   String?  @map("previous_court") @db.VarChar(500)
+  newCourt        String   @map("new_court") @db.VarChar(500)
+  changedAt       DateTime @default(now()) @map("changed_at")
+  changeReason    String?  @map("change_reason") @db.VarChar(1000)
+  changedByUserId String?  @map("changed_by_user_id")
+  datajudPayload  Json?    @map("datajud_payload")
+
+  process       Process @relation(fields: [processId], references: [id])
+  changedByUser User?   @relation(fields: [changedByUserId], references: [id])
+
+  @@index([processId])
+  @@index([tenantId])
+  @@index([changedAt])
+  @@map("court_history")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// TASK
+// ─────────────────────────────────────────────────────────────────
+model Task {
+  id              String       @id @default(cuid())
+  tenantId        String       @map("tenant_id")
+  processId       String?      @map("process_id")
+  title           String       @db.VarChar(500)
+  description     String?      @db.Text
+  priority        TaskPriority @default(MEDIUM)
+  assigneeUserId  String?      @map("assignee_user_id")
+  dueDate         DateTime?    @map("due_date")
+  status          TaskStatus   @default(TODO)
+  createdByUserId String       @map("created_by_user_id")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  deletedAt       DateTime?    @map("deleted_at")
+
+  tenant    Tenant       @relation(fields: [tenantId], references: [id])
+  process   Process?     @relation(fields: [processId], references: [id])
+  assignee  User?        @relation("TaskAssignee", fields: [assigneeUserId], references: [id])
+  createdBy User         @relation("TaskCreator", fields: [createdByUserId], references: [id])
+  history   TaskHistory[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, assigneeUserId])
+  @@index([tenantId, dueDate])
+  @@map("tasks")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// TASK HISTORY — IMUTÁVEL (append-only)
+// ─────────────────────────────────────────────────────────────────
+model TaskHistory {
+  id            String     @id @default(cuid())
+  taskId        String     @map("task_id")
+  fromStatus    TaskStatus @map("from_status")
+  toStatus      TaskStatus @map("to_status")
+  movedByUserId String     @map("moved_by_user_id")
+  movedAt       DateTime   @default(now()) @map("moved_at")
+
+  task    Task @relation(fields: [taskId], references: [id])
+  movedBy User @relation(fields: [movedByUserId], references: [id])
+
+  @@index([taskId])
+  @@map("task_history")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// AUDIT LOG — IMUTÁVEL (append-only)
+// ─────────────────────────────────────────────────────────────────
+model AuditLog {
+  id            String   @id @default(cuid())
+  tenantId      String?  @map("tenant_id")
+  userId        String?  @map("user_id")
+  action        String   @db.VarChar(100)
+  resourceType  String   @map("resource_type") @db.VarChar(100)
+  resourceId    String?  @map("resource_id") @db.VarChar(255)
+  timestamp     DateTime @default(now())
+  ipAddress     String   @map("ip_address") @db.VarChar(45)
+  userAgent     String   @map("user_agent") @db.VarChar(1000)
+  payloadBefore Json?    @map("payload_before")
+  payloadAfter  Json?    @map("payload_after")
+  payloadHash   String   @map("payload_hash") @db.VarChar(64) // SHA-256 para verificação de integridade
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+  user   User?   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, userId])
+  @@index([tenantId, action])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// NOTIFICATION
+// ─────────────────────────────────────────────────────────────────
+model Notification {
+  id           String           @id @default(cuid())
+  tenantId     String           @map("tenant_id")
+  userId       String           @map("user_id")
+  type         NotificationType
+  title        String           @db.VarChar(500)
+  body         String           @db.Text
+  resourceType String?          @map("resource_type") @db.VarChar(100)
+  resourceId   String?          @map("resource_id") @db.VarChar(255)
+  readAt       DateTime?        @map("read_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  expiresAt    DateTime         @map("expires_at") // 90 dias após criação
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, userId])
+  @@index([tenantId, userId, readAt])
+  @@index([expiresAt])
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// USER NOTIFICATION PREFERENCE
+// ─────────────────────────────────────────────────────────────────
+model UserNotificationPreference {
+  id               String           @id @default(cuid())
+  userId           String           @map("user_id")
+  tenantId         String           @map("tenant_id")
+  notificationType NotificationType @map("notification_type")
+  channelInApp     Boolean          @default(true) @map("channel_in_app")
+  channelEmail     Boolean          @default(true) @map("channel_email")
+  channelPush      Boolean          @default(true) @map("channel_push")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, notificationType])
+  @@index([tenantId])
+  @@map("user_notification_preferences")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// INVITATION TOKEN
+// ─────────────────────────────────────────────────────────────────
+model InvitationToken {
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
+  email       String    @db.VarChar(255)
+  role        UserRole
+  token       String    @unique @db.VarChar(255) // Criptograficamente seguro, 32 bytes hex
+  invitedById String    @map("invited_by_id")
+  expiresAt   DateTime  @map("expires_at") // +72h após criação
+  usedAt      DateTime? @map("used_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  invitedBy User   @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  @@index([tenantId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("invitation_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CONSENT RECORD — LGPD
+// ─────────────────────────────────────────────────────────────────
+model ConsentRecord {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  tenantId      String   @map("tenant_id")
+  policyVersion String   @map("policy_version") @db.VarChar(20)
+  consentedAt   DateTime @default(now()) @map("consented_at")
+  ipAddress     String   @map("ip_address") @db.VarChar(45)
+  userAgent     String   @map("user_agent") @db.VarChar(1000)
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([userId])
+  @@index([tenantId])
+  @@map("consent_records")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// DATAJUD SYNC — Histórico de sincronizações
+// ─────────────────────────────────────────────────────────────────
+model DataJudSync {
+  id           String            @id @default(cuid())
+  processId    String            @map("process_id")
+  tenantId     String            @map("tenant_id")
+  status       DataJudSyncStatus
+  attempt      Int               @default(1)
+  requestedAt  DateTime          @default(now()) @map("requested_at")
+  completedAt  DateTime?         @map("completed_at")
+  errorMessage String?           @map("error_message") @db.Text
+  responseHash String?           @map("response_hash") @db.VarChar(64)
+  changesFound Boolean?          @map("changes_found")
+
+  process Process @relation(fields: [processId], references: [id])
+
+  @@index([processId])
+  @@index([tenantId, status])
+  @@index([requestedAt])
+  @@map("datajud_syncs")
+}

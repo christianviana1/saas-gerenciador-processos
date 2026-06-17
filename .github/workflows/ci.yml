@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-and-build:
+    name: Test & Build
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sistema_juridico_test
+          MYSQL_USER: ci_user
+          MYSQL_PASSWORD: ci_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: mysql://ci_user:ci_password@127.0.0.1:3306/sistema_juridico_test
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ""
+      REDIS_TLS: "false"
+      NEXTAUTH_SECRET: ci-dummy-secret-do-not-use-in-production-32chars
+      NEXTAUTH_URL: http://localhost:3000
+      # AES-256 requires a 64-char hex string (32 bytes)
+      AES_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      VAPID_PUBLIC_KEY: "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U"
+      VAPID_PRIVATE_KEY: "UUxI4O8-FbRouAevSmBQ6o18hgE4nSG3qwvJTfKc-ls"
+      VAPID_SUBJECT: "mailto:ci@example.com"
+      SMTP_HOST: "localhost"
+      SMTP_PORT: "1025"
+      SMTP_SECURE: "false"
+      SMTP_USER: "ci@example.com"
+      SMTP_PASSWORD: "ci-dummy"
+      SMTP_FROM_NAME: "CI Test"
+      SMTP_FROM_EMAIL: "ci@example.com"
+      APP_URL: http://localhost:3000
+      LOG_LEVEL: error
+      SKIP_E2E: "true"
+      DATAJUD_API_URL: "https://api-publica.datajud.cnj.jus.br"
+      DATAJUD_API_KEY: ""
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+
+      - name: Run tests (unit + integration + property)
+        run: npm run test
+
+      - name: Run coverage check (fails if < 80%)
+        run: npm run test:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+      - name: Build Next.js
+        run: npm run build

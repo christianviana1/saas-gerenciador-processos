@@ -1,0 +1,114 @@
+{
+  "version": "2.0.0",
+  "lastUpdated": "2025-07-17T00:00:00Z",
+  "featureName": "legal-saas-platform",
+  "workflowType": "requirements-first",
+  "currentPhase": 12,
+  "implementationStatus": "complete",
+  "phases": {
+    "1_infrastructure_base": "complete",
+    "2_prisma_schema": "complete",
+    "3_domain_layer": "complete",
+    "4_security_auth": "complete",
+    "5_middleware_rbac": "complete",
+    "6_bullmq_audit": "complete",
+    "7_repositories_usecases": "complete",
+    "8_process_management": "complete",
+    "9_datajud_integration": "complete",
+    "10_tasks_notifications_pwa": "complete",
+    "11_admin_lgpd_observability_hardening": "complete",
+    "12_e2e_cicd_cache_docs": "complete"
+  },
+  "tasksSummary": {
+    "total": 116,
+    "completed": 92,
+    "remaining": 24,
+    "note": "Remaining tasks are checkpoints and optional PBT tests already accounted for in completed phases"
+  },
+  "completedDocuments": [
+    ".kiro/specs/legal-saas-platform/requirements.md",
+    ".kiro/specs/legal-saas-platform/design.md",
+    ".kiro/specs/legal-saas-platform/tasks.md",
+    "project-context/architecture.md",
+    "project-context/database.md",
+    "project-context/api-contracts.md",
+    "project-context/progress.md",
+    "project-context/decisions.md",
+    "project-context/checkpoint.json"
+  ],
+  "keyFiles": {
+    "schema": "src/infrastructure/database/prisma/schema.prisma",
+    "authConfig": "src/auth.ts",
+    "middleware": "middleware.ts",
+    "queues": "src/infrastructure/queues/queues.ts",
+    "rbacEngine": "src/domain/services/RBACEngine.ts",
+    "datajudClient": "src/infrastructure/datajud/DataJudClient.ts",
+    "cicd": ".github/workflows/ci.yml",
+    "healthCheck": "src/app/api/health/route.ts"
+  },
+  "knownIssues": [
+    "prisma migrate dev must be run manually before first start (no MySQL available in Kiro environment)",
+    "VAPID keys must be generated: npx web-push generate-vapid-keys",
+    "Copy .env.example to .env and fill in real values before running"
+  ],
+  "techDebt": [
+    "otplib v12 is deprecated — upgrade to v13 when stable",
+    "next-pwa v5 uses workbox-v6 (deprecated) — consider @ducanh2912/next-pwa or custom SW",
+    "next@14.2.29 has a security vulnerability — upgrade to latest 14.x patch",
+    "ESLint 8 — upgrade to ESLint 9 with flat config"
+  ],
+  "keyDecisions": {
+    "database": "MySQL 8.0 + Prisma ORM 5",
+    "auth": "Auth.js v5 JWT HS256 8h + TOTP MFA",
+    "multitenancy": "Row-level via tenant_id (repository layer enforcement)",
+    "queues": "BullMQ 5 + Redis 7 (4 queues: datajud-sync, notifications, audit, email)",
+    "passwordHashing": "Argon2id (64MB, 3 iter, 4 parallel, 16-byte salt)",
+    "encryption": "AES-256-GCM for sensitive fields at rest",
+    "pbt": "fast-check with Vitest (Properties 1-9)",
+    "csp": "Per-request nonce via Edge Middleware, no unsafe-inline",
+    "ssrf": "Shared ssrfValidator utility blocking RFC 1918 + link-local ranges",
+    "cache": "Redis cache layer for tenant config (5min TTL)",
+    "circuitBreaker": "In-memory circuit breaker in DataJudClient (5 failures → 30s wait)",
+    "auditImmutability": "Append-only repository + SHA-256 payload_hash per record"
+  },
+  "properties": [
+    { "id": "P1", "name": "Isolamento de Tenant", "status": "implemented", "file": "tests/security/tenantIsolation.security.test.ts", "requirements": ["1.7", "1.1", "6.9"] },
+    { "id": "P2", "name": "Round-Trip Serialização Process", "status": "implemented", "file": "tests/property/processSerialization.property.test.ts", "requirements": ["16.6", "6.2", "6.3"] },
+    { "id": "P3", "name": "Validação CNJ_Number", "status": "implemented", "file": "tests/property/cnjValidator.property.test.ts", "requirements": ["6.1", "16.6"] },
+    { "id": "P4", "name": "Imutabilidade de Trilhas", "status": "implemented", "file": "tests/property/auditImmutability.property.test.ts", "requirements": ["3.4", "8.3", "9.9"] },
+    { "id": "P5", "name": "Idempotência Hash_Detector", "status": "implemented", "file": "tests/property/hashDetector.property.test.ts", "requirements": ["7.3", "16.6"] },
+    { "id": "P6", "name": "Unicidade Invitation_Token", "status": "implemented", "file": "tests/property/tokenUniqueness.property.test.ts", "requirements": ["4.1", "16.6"] },
+    { "id": "P7", "name": "RBAC Bloqueio Elevação Privilégio", "status": "implemented", "file": "tests/property/rbacPrivilegeEscalation.property.test.ts", "requirements": ["2.8", "16.8"] },
+    { "id": "P8", "name": "Validação de Senha", "status": "implemented", "file": "src/application/usuarios/ActivateUserUseCase.ts (ActivateAccountSchema)", "requirements": ["4.5"] },
+    { "id": "P9", "name": "Hash Senha Round-Trip", "status": "implemented", "file": "tests/property/passwordHash.property.test.ts", "requirements": ["4.6", "12.7"] }
+  ],
+  "e2eTests": [
+    "tests/e2e/invite-and-login.spec.ts",
+    "tests/e2e/create-process.spec.ts",
+    "tests/e2e/kanban-task.spec.ts",
+    "tests/e2e/mfa-setup.spec.ts",
+    "tests/e2e/notification.spec.ts",
+    "tests/e2e/rbac-intern.spec.ts"
+  ],
+  "readyForProduction": {
+    "status": false,
+    "blockers": [
+      "Database migration not yet run (no MySQL in dev environment)",
+      "Real SMTP credentials not configured",
+      "Real VAPID keys not generated",
+      "Production .env not created"
+    ],
+    "productionChecklist": [
+      "Copy .env.example to .env and fill all values",
+      "Run: npx prisma migrate dev --name init",
+      "Run: npx prisma db seed",
+      "Run: npx web-push generate-vapid-keys",
+      "Run: npm run test (all tests should pass)",
+      "Run: npm run build (production build)",
+      "Configure GitHub Actions secrets for CI/CD",
+      "Set up MySQL 8.0 and Redis 7 on production server",
+      "Enable HTTPS/TLS on production server",
+      "Configure backup scripts (scripts/backup.sh)"
+    ]
+  }
+}
