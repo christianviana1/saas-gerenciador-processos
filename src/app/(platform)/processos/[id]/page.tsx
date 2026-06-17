@@ -9,54 +9,54 @@
  * Requirements: 6.6, 7.8, 8.4
  */
 
-import { notFound, redirect } from 'next/navigation';
-import Link from 'next/link';
-import { auth } from '@/auth';
-import { prisma } from '@/infrastructure/database/prisma/client';
-import { isDatajudSyncStale } from '@/domain/entities/Process';
+import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
+import { auth } from "@/auth";
+import { prisma } from "@/infrastructure/database/prisma/client";
+import { isDatajudSyncStale } from "@/domain/entities/Process";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STATUS_LABELS: Record<string, string> = {
-  ACTIVE:   'Ativo',
-  ARCHIVED: 'Arquivado',
-  DELETED:  'Excluído',
+  ACTIVE: "Ativo",
+  ARCHIVED: "Arquivado",
+  DELETED: "Excluído",
 };
 
 const STATUS_BADGE: Record<string, string> = {
-  ACTIVE:   'bg-green-100 text-green-800',
-  ARCHIVED: 'bg-gray-100 text-gray-700',
-  DELETED:  'bg-red-100 text-red-800',
+  ACTIVE: "bg-green-100 text-green-800",
+  ARCHIVED: "bg-gray-100 text-gray-700",
+  DELETED: "bg-red-100 text-red-800",
 };
 
 const TASK_STATUS_LABELS: Record<string, string> = {
-  TODO:        'A Fazer',
-  IN_PROGRESS: 'Em Andamento',
-  REVIEW:      'Revisão',
-  DONE:        'Concluído',
+  TODO: "A Fazer",
+  IN_PROGRESS: "Em Andamento",
+  REVIEW: "Revisão",
+  DONE: "Concluído",
 };
 
 const TASK_STATUS_BADGE: Record<string, string> = {
-  TODO:        'bg-gray-100 text-gray-700',
-  IN_PROGRESS: 'bg-blue-100 text-blue-800',
-  REVIEW:      'bg-yellow-100 text-yellow-800',
-  DONE:        'bg-green-100 text-green-800',
+  TODO: "bg-gray-100 text-gray-700",
+  IN_PROGRESS: "bg-blue-100 text-blue-800",
+  REVIEW: "bg-yellow-100 text-yellow-800",
+  DONE: "bg-green-100 text-green-800",
 };
 
 const TASK_PRIORITY_LABELS: Record<string, string> = {
-  LOW:    'Baixa',
-  MEDIUM: 'Média',
-  HIGH:   'Alta',
-  URGENT: 'Urgente',
+  LOW: "Baixa",
+  MEDIUM: "Média",
+  HIGH: "Alta",
+  URGENT: "Urgente",
 };
 
 const TASK_PRIORITY_BADGE: Record<string, string> = {
-  LOW:    'bg-gray-100 text-gray-600',
-  MEDIUM: 'bg-blue-100 text-blue-700',
-  HIGH:   'bg-orange-100 text-orange-700',
-  URGENT: 'bg-red-100 text-red-700',
+  LOW: "bg-gray-100 text-gray-600",
+  MEDIUM: "bg-blue-100 text-blue-700",
+  HIGH: "bg-orange-100 text-orange-700",
+  URGENT: "bg-red-100 text-red-700",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -70,7 +70,7 @@ export default async function ProcessoDetailPage({
 }) {
   const session = await auth();
   if (!session?.user) {
-    redirect('/login');
+    redirect("/login");
   }
 
   const { id } = await params;
@@ -94,7 +94,7 @@ export default async function ProcessoDetailPage({
       processId: processo.id,
       tenantId: session.user.tenantId,
     },
-    orderBy: { changedAt: 'desc' },
+    orderBy: { changedAt: "desc" },
     include: {
       changedByUser: {
         select: { id: true, name: true, email: true },
@@ -109,7 +109,7 @@ export default async function ProcessoDetailPage({
       tenantId: session.user.tenantId,
       deletedAt: null,
     },
-    orderBy: [{ status: 'asc' }, { dueDate: 'asc' }],
+    orderBy: [{ status: "asc" }, { dueDate: "asc" }],
     include: {
       assignee: {
         select: { id: true, name: true, email: true },
@@ -117,7 +117,9 @@ export default async function ProcessoDetailPage({
     },
   });
 
-  const stale = isDatajudSyncStale(processo as { lastDatajudSyncAt: Date | null });
+  const stale = isDatajudSyncStale(
+    processo as { lastDatajudSyncAt: Date | null },
+  );
   const responsibleIds: string[] = Array.isArray(processo.responsibleUserIds)
     ? (processo.responsibleUserIds as string[])
     : [];
@@ -129,7 +131,9 @@ export default async function ProcessoDetailPage({
         <Link href="/processos" className="hover:text-gray-700">
           Processos
         </Link>
-        <span className="mx-2" aria-hidden="true">/</span>
+        <span className="mx-2" aria-hidden="true">
+          /
+        </span>
         <span className="text-gray-900 font-medium font-mono">
           {processo.cnjNumber}
         </span>
@@ -154,7 +158,7 @@ export default async function ProcessoDetailPage({
           )}
           <span
             className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-              STATUS_BADGE[processo.status] ?? 'bg-gray-100 text-gray-700'
+              STATUS_BADGE[processo.status] ?? "bg-gray-100 text-gray-700"
             }`}
           >
             {STATUS_LABELS[processo.status] ?? processo.status}
@@ -184,13 +188,17 @@ export default async function ProcessoDetailPage({
               <dt className="text-xs font-medium text-gray-500 uppercase">
                 Cliente
               </dt>
-              <dd className="mt-1 text-sm text-gray-900">{processo.clientName}</dd>
+              <dd className="mt-1 text-sm text-gray-900">
+                {processo.clientName}
+              </dd>
             </div>
             <div>
               <dt className="text-xs font-medium text-gray-500 uppercase">
                 Classe processual
               </dt>
-              <dd className="mt-1 text-sm text-gray-900">{processo.processClass}</dd>
+              <dd className="mt-1 text-sm text-gray-900">
+                {processo.processClass}
+              </dd>
             </div>
             <div>
               <dt className="text-xs font-medium text-gray-500 uppercase">
@@ -223,8 +231,10 @@ export default async function ProcessoDetailPage({
                   )}
                   <span>
                     {processo.lastDatajudSyncAt
-                      ? new Date(processo.lastDatajudSyncAt).toLocaleString('pt-BR')
-                      : '—'}
+                      ? new Date(processo.lastDatajudSyncAt).toLocaleString(
+                          "pt-BR",
+                        )
+                      : "—"}
                   </span>
                 </div>
               </dd>
@@ -239,30 +249,31 @@ export default async function ProcessoDetailPage({
                 </dd>
               </div>
             )}
-            {Array.isArray(processo.tags) && (processo.tags as string[]).length > 0 && (
-              <div className="sm:col-span-2 lg:col-span-3">
-                <dt className="text-xs font-medium text-gray-500 uppercase">
-                  Tags
-                </dt>
-                <dd className="mt-1 flex flex-wrap gap-1">
-                  {(processo.tags as string[]).map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </dd>
-              </div>
-            )}
+            {Array.isArray(processo.tags) &&
+              (processo.tags as string[]).length > 0 && (
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <dt className="text-xs font-medium text-gray-500 uppercase">
+                    Tags
+                  </dt>
+                  <dd className="mt-1 flex flex-wrap gap-1">
+                    {(processo.tags as string[]).map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </dd>
+                </div>
+              )}
             {responsibleIds.length > 0 && (
               <div className="sm:col-span-2 lg:col-span-3">
                 <dt className="text-xs font-medium text-gray-500 uppercase">
                   Responsáveis
                 </dt>
                 <dd className="mt-1 text-sm text-gray-900">
-                  {responsibleIds.join(', ')}
+                  {responsibleIds.join(", ")}
                 </dd>
               </div>
             )}
@@ -271,7 +282,7 @@ export default async function ProcessoDetailPage({
                 Criado em
               </dt>
               <dd className="mt-1 text-sm text-gray-900">
-                {new Date(processo.createdAt).toLocaleString('pt-BR')}
+                {new Date(processo.createdAt).toLocaleString("pt-BR")}
               </dd>
             </div>
             <div>
@@ -279,7 +290,7 @@ export default async function ProcessoDetailPage({
                 Atualizado em
               </dt>
               <dd className="mt-1 text-sm text-gray-900">
-                {new Date(processo.updatedAt).toLocaleString('pt-BR')}
+                {new Date(processo.updatedAt).toLocaleString("pt-BR")}
               </dd>
             </div>
           </dl>
@@ -306,7 +317,10 @@ export default async function ProcessoDetailPage({
               Nenhuma movimentação de tribunal registrada ainda.
             </div>
           ) : (
-            <ol className="divide-y divide-gray-100" aria-label="Histórico de tribunais">
+            <ol
+              className="divide-y divide-gray-100"
+              aria-label="Histórico de tribunais"
+            >
               {courtHistory.map((entry: any, idx: number) => (
                 <li key={entry.id} className="px-6 py-4">
                   <div className="flex items-start justify-between gap-4">
@@ -324,19 +338,23 @@ export default async function ProcessoDetailPage({
                       </div>
                       {entry.previousCourt && (
                         <p className="mt-1 text-xs text-gray-500">
-                          Anterior:{' '}
-                          <span className="text-gray-700">{entry.previousCourt}</span>
+                          Anterior:{" "}
+                          <span className="text-gray-700">
+                            {entry.previousCourt}
+                          </span>
                         </p>
                       )}
                       {entry.changeReason && (
                         <p className="mt-1 text-xs text-gray-500">
-                          Motivo:{' '}
-                          <span className="text-gray-700">{entry.changeReason}</span>
+                          Motivo:{" "}
+                          <span className="text-gray-700">
+                            {entry.changeReason}
+                          </span>
                         </p>
                       )}
                       {entry.changedByUser && (
                         <p className="mt-1 text-xs text-gray-500">
-                          Alterado por:{' '}
+                          Alterado por:{" "}
                           <span className="text-gray-700">
                             {entry.changedByUser.name}
                           </span>
@@ -347,7 +365,7 @@ export default async function ProcessoDetailPage({
                       dateTime={new Date(entry.changedAt).toISOString()}
                       className="flex-shrink-0 text-xs text-gray-400 whitespace-nowrap"
                     >
-                      {new Date(entry.changedAt).toLocaleString('pt-BR')}
+                      {new Date(entry.changedAt).toLocaleString("pt-BR")}
                     </time>
                   </div>
                 </li>
@@ -374,11 +392,14 @@ export default async function ProcessoDetailPage({
               Nenhuma tarefa vinculada a este processo.
             </div>
           ) : (
-            <ul className="divide-y divide-gray-100" aria-label="Tarefas do processo">
-              {tasks.map((task) => {
+            <ul
+              className="divide-y divide-gray-100"
+              aria-label="Tarefas do processo"
+            >
+              {tasks.map((task: any) => {
                 const isOverdue =
                   task.dueDate !== null &&
-                  task.status !== 'DONE' &&
+                  task.status !== "DONE" &&
                   new Date(task.dueDate) < new Date();
                 return (
                   <li key={task.id} className="px-6 py-4">
@@ -387,17 +408,20 @@ export default async function ProcessoDetailPage({
                         <div className="flex items-center gap-2 flex-wrap">
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              TASK_STATUS_BADGE[task.status] ?? 'bg-gray-100 text-gray-700'
+                              TASK_STATUS_BADGE[task.status] ??
+                              "bg-gray-100 text-gray-700"
                             }`}
                           >
                             {TASK_STATUS_LABELS[task.status] ?? task.status}
                           </span>
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              TASK_PRIORITY_BADGE[task.priority] ?? 'bg-gray-100 text-gray-600'
+                              TASK_PRIORITY_BADGE[task.priority] ??
+                              "bg-gray-100 text-gray-600"
                             }`}
                           >
-                            {TASK_PRIORITY_LABELS[task.priority] ?? task.priority}
+                            {TASK_PRIORITY_LABELS[task.priority] ??
+                              task.priority}
                           </span>
                           {isOverdue && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
@@ -410,18 +434,26 @@ export default async function ProcessoDetailPage({
                         </div>
                         {task.assignee && (
                           <p className="mt-1 text-xs text-gray-500">
-                            Responsável:{' '}
-                            <span className="text-gray-700">{task.assignee.name}</span>
+                            Responsável:{" "}
+                            <span className="text-gray-700">
+                              {task.assignee.name}
+                            </span>
                           </p>
                         )}
                         {task.dueDate && (
                           <p className="mt-1 text-xs text-gray-500">
-                            Prazo:{' '}
+                            Prazo:{" "}
                             <time
                               dateTime={new Date(task.dueDate).toISOString()}
-                              className={isOverdue ? 'text-red-700 font-medium' : 'text-gray-700'}
+                              className={
+                                isOverdue
+                                  ? "text-red-700 font-medium"
+                                  : "text-gray-700"
+                              }
                             >
-                              {new Date(task.dueDate).toLocaleDateString('pt-BR')}
+                              {new Date(task.dueDate).toLocaleDateString(
+                                "pt-BR",
+                              )}
                             </time>
                           </p>
                         )}
