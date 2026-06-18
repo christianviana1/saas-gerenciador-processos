@@ -74,7 +74,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       actorUserId: userId,
       actorRole:   role,
       filters: {
-        status:            searchParams.get('status') as import('@prisma/client').ProcessStatus | undefined ?? undefined,
+        status:            searchParams.get('status') as import('@/domain/entities/Process').ProcessStatus | undefined ?? undefined,
         responsibleUserId: searchParams.get('responsibleUserId') ?? undefined,
         currentCourt:      searchParams.get('currentCourt')      ?? undefined,
         tags:              tagsRaw ? tagsRaw.split(',')          : undefined,

@@ -20,7 +20,7 @@
     "db:studio": "prisma studio"
   },
   "prisma": {
-    "schema": "prisma/schema.prisma",
+    "schema": "src/infrastructure/database/prisma/schema.prisma",
     "seed": "tsx src/infrastructure/database/prisma/seed.ts"
   },
   "dependencies": {
