@@ -126,7 +126,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     ]);
 
     return Response.json({
-      data: tenants.map((t) => ({
+      data: tenants.map((t: any) => ({
         ...t,
         userCount: t._count.users,
         _count: undefined,
