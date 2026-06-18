@@ -30,6 +30,7 @@ const redis = new IORedis({
   port: Number(process.env.REDIS_PORT ?? 6379),
   password: process.env.REDIS_PASSWORD || undefined,
   maxRetriesPerRequest: null,
+  lazyConnect: true,
 });
 
 /** Prefixo da chave Redis que sinaliza tenant bloqueado. */
