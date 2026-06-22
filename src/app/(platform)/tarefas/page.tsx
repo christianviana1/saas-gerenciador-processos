@@ -41,6 +41,9 @@ function groupByStatus(tasks: Task[]): GroupedTasks {
 // Page Component
 // ─────────────────────────────────────────────────────────────────────────────
 
+'use client';
+export const dynamic = 'force-dynamic';
+
 export default async function TarefasPage() {
   const session = await auth();
   if (!session?.user) {

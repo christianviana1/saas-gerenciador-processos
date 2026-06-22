@@ -37,6 +37,9 @@ const STATUS_BADGE: Record<ProcessStatus, string> = {
 // Page Component
 // ─────────────────────────────────────────────────────────────────────────────
 
+'use client';
+export const dynamic = 'force-dynamic';
+
 export default async function ProcessosPage({
   searchParams,
 }: {
